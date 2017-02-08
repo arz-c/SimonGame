@@ -4,6 +4,7 @@ int pb3  = 8;
 int pb4  = 9;
 int led;
 int A;
+int buzzer = 10;
 
 #define PATTERN_SIZE 5
 #define LED_ON_DELAY 500
@@ -12,6 +13,7 @@ int pbPorts[] = {6, 7, 8, 9};
 int currentPattern[PATTERN_SIZE];
 int patternSize = 0; 
 int ledPorts[] = {2, 3, 4, 5};
+int buzFreq[] = {55, 65, 82, 98};
 
 /*
   The following function adds one LED to the pattern, then displays whatever is in the entire pattern.
@@ -24,11 +26,7 @@ void doPattern(int lednum, int delayVal) {
     currentPattern[patternSize] = A;
     patternSize++;
     for(i = 0; i < patternSize; i++) {
-      led = ledPorts[currentPattern[i]];
-      digitalWrite(led, HIGH);
-      delay(delayVal);
-      digitalWrite(led, LOW);
-      delay(delayVal);
+      blinkAndBeep(currentPattern[i], delayVal, delayVal);
     }
 }
 
@@ -37,6 +35,8 @@ void restart() {
 
 }
 
+// Check if any button is pressed.
+// Returns true or false.
 bool anyButtonPressed() {
   for(int i = 0; i < sizeof(pbPorts); i++) {
     if (digitalRead(pbPorts[i]) == HIGH) {
@@ -46,7 +46,9 @@ bool anyButtonPressed() {
   return false;
 }
 
+// Wait for user's input, then return the input.
 int buttonPress() {
+  // Wait for user's input.
   while(anyButtonPressed() == false);
   for(int i = 0; i < sizeof(pbPorts); i++) {
      if(digitalRead(pbPorts[i]) == HIGH) {
@@ -56,22 +58,39 @@ int buttonPress() {
   }
 }
 
+// Blinks the led with specified perimeters.
 void blinkLED(int ledNum, int blinkDelay, int blinkAmount, int delayOff) {
   for(int i = 0; i < blinkAmount; i++) {
     digitalWrite(ledPorts[ledNum], HIGH);
     delay(blinkDelay);
     digitalWrite(ledPorts[ledNum], LOW);
-    if(delayOff != 0)
+    if(delayOff != 0) {
       delay(delayOff);
+    }
   }
 } 
 
+void blinkAndBeep(int ledNum, int delayOff, int delayOn) {
+  int toneFreq;
+
+  digitalWrite(ledPorts[ledNum], HIGH);
+  toneFreq = buzFreq[ledNum];
+  tone(buzzer, toneFreq, delayOn);
+  delay(delayOn);
+  digitalWrite(ledPorts[ledNum], LOW);
+  if(delayOff != 0) {
+    delay(delayOff);
+  }
+}
+
+// Turn all LEDs on/off.
 void doLED(int status) {
    for (int i = 0; i < sizeof(ledPorts); i++) {
     digitalWrite(ledPorts[i], status); 
   }
  }
 
+// Sets up the hardware.
 void setup() {
   randomSeed(analogRead(0));
   for (int i = 0; i < sizeof(ledPorts); i++) {
@@ -92,14 +111,18 @@ void setup() {
 
 
 void loop() {
+  // Add a new LED to the pattern, and then display it.
   doPattern(4, LED_ON_DELAY);
   int userLED;
+  // Loop through complete pattern.
   for(int ledNo = 0; ledNo < patternSize; ledNo++) {
-    //Serial.print("Looking for key: ");
+    // Get user's input.
     userLED = buttonPress();
-    //Serial.println(userLED);
-    blinkLED(userLED, LED_ON_DELAY, 1, 0);
+    // Blink it.
+    blinkAndBeep(userLED, 0, LED_ON_DELAY);
+    // Check if it's correct.
     if(userLED != currentPattern[ledNo]) {
+      // Wrong - Restart the pattern.
       restart();
       doLED(HIGH);
         delay(400);
@@ -109,6 +132,8 @@ void loop() {
   }
   delay(LED_ON_DELAY);
 
+  // Check if PATTERN_SIZE exeeds the pattern size.
+  // If yes, then blink all LEDs to indicate it, and restart the pattern.
   if (patternSize == PATTERN_SIZE) {
     patternSize = 0;
     for (int x = 0; x <= 2; x++) {
